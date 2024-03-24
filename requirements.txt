@@ -1,0 +1,10 @@
+git+https://github.com/facebookresearch/fairseq.git
+scipy
+sentencepiece
+python_speech_features
+scikit-video
+scikit-image
+dlib
+opencv-python
+pytube
+httpx==0.24.1
