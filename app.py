@@ -2,10 +2,10 @@ import os
 import sys
 
 os.system('git clone https://github.com/facebookresearch/av_hubert.git')
-os.chdir(r'D:\vsCode\lip2text\av_hubert')
+os.chdir('/home/user/app/av_hubert')
 os.system('git submodule init')
 os.system('git submodule update')
-os.chdir(r'D:\vsCode\lip2text\av_hubert\fairseq')
+os.chdir('/home/user/app/av_hubert/fairseq')
 os.system('pip install ./')
 os.system('pip install scipy')
 os.system('pip install sentencepiece')
@@ -17,7 +17,7 @@ os.system('pip install numpy==1.23.3')
 
 
 # sys.path.append('/home/user/app/av_hubert')
-sys.path.append('D:\vsCode\lip2text\av_hubert')
+sys.path.append('/home/user/app/av_hubert/avhubert')
 
 print(sys.path)
 print(os.listdir())
