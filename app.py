@@ -194,6 +194,7 @@ with demo:
     with gr.Row():
         # video_lip = gr.Video(label="Audio Visual Video", mirror_webcam=False) 
         text_output.render()
+
         
         
 demo.launch(debug=True)
