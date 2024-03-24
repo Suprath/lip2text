@@ -1,6 +1,21 @@
 import os
 import sys
+import dlib
+import cv2
+import numpy as np
+import skvideo
+import skvideo.io
+from tqdm import tqdm
+from preparation.align_mouth import landmarks_interpolate, crop_patch, write_video_ffmpeg
+from argparse import Namespace
+import fairseq
+from fairseq import checkpoint_utils, options, tasks, utils
+from fairseq.dataclass.configs import GenerationConfig
+from huggingface_hub import hf_hub_download
+import gradio as gr
+from pytube import YouTube
 
+# ---- Download AV-HuBERT and install dependencies ----
 os.system('git clone https://github.com/facebookresearch/av_hubert.git')
 os.chdir('/home/user/app/av_hubert')
 os.system('git submodule init')
@@ -14,38 +29,9 @@ os.system('pip install scikit-video')
 os.system('pip install transformers')
 os.system('pip install gradio==3.12')
 os.system('pip install numpy==1.23.3')
-
-
-# sys.path.append('/home/user/app/av_hubert')
 sys.path.append('/home/user/app/av_hubert/avhubert')
 
-print(sys.path)
-print(os.listdir())
-print(sys.argv, type(sys.argv))
-sys.argv.append('dummy')
-
-
-
-import dlib, cv2, os
-import numpy as np
-import skvideo
-import skvideo.io
-from tqdm import tqdm
-from preparation.align_mouth import landmarks_interpolate, crop_patch, write_video_ffmpeg
-from base64 import b64encode
-import torch
-import cv2
-import tempfile
-from argparse import Namespace
-import fairseq
-from fairseq import checkpoint_utils, options, tasks, utils
-from fairseq.dataclass.configs import GenerationConfig
-from huggingface_hub import hf_hub_download
-import gradio as gr
-from pytube import YouTube
-
-# os.chdir('/home/user/app/av_hubert/avhubert')
-
+# ---- Load AV-HuBERT models and setup Gradio interface ----
 user_dir = "/home/user/app/av_hubert/avhubert"
 utils.import_user_module(Namespace(user_dir=user_dir))
 data_dir = "/home/user/app/video"
@@ -110,6 +96,16 @@ def preprocess_video(input_video_path):
     write_video_ffmpeg(rois, mouth_roi_path, "/usr/bin/ffmpeg")
     return mouth_roi_path
 
+def extract_word_timings(hypo):
+    words = hypo.split()
+    word_timings = [(idx * 0.04, word) for idx, word in enumerate(words)]
+    return word_timings
+
+def save_word_timings(word_timings, output_file):
+    with open(output_file, "w") as f:
+        for timing, word in word_timings:
+            f.write(f"{timing:.2f}\t{word}\n")
+
 def predict(process_video):
     num_frames = int(cv2.VideoCapture(process_video).get(cv2.CAP_PROP_FRAME_COUNT))
 
@@ -135,10 +131,18 @@ def predict(process_video):
     ref = decode_fn(sample['target'][0].int().cpu())
     hypo = hypos[0][0]['tokens'].int().cpu()
     hypo = decode_fn(hypo)
+    
+    # Extract word timings
+    word_timings = extract_word_timings(hypo)
+    
+    # Save word timings to a txt file
+    output_file = "/home/user/app/av_hubert/avhubert/word_timings.txt"
+    save_word_timings(word_timings, output_file)
+
     return hypo
 
-
 # ---- Gradio Layout -----
+
 youtube_url_in = gr.Textbox(label="Youtube url", lines=1, interactive=True)
 video_in = gr.Video(label="Input Video", mirror_webcam=False, interactive=True)
 video_out = gr.Video(label="Audio Visual Video", mirror_webcam=False, interactive=True) 
@@ -148,52 +152,53 @@ text_output = gr.Textbox()
 
 with demo:
     gr.Markdown('''
-            <div>
-            <h1 style='text-align: center'>Speech Recognition from Visual Lip Movement by Audio-Visual Hidden Unit BERT Model (AV-HuBERT)</h1>
-            This space uses AV-HuBERT models from <a href='https://github.com/facebookresearch' target='_blank'><b>Meta Research</b></a> to recoginze the speech from Lip Movement 🤗
-            <figure>
-              <img src="https://huggingface.co/vumichien/AV-HuBERT/resolve/main/lipreading.gif" alt="Audio-Visual Speech Recognition">
-              <figcaption> Speech Recognition from visual lip movement
-              </figcaption>
-            </figure>
-            </div>
-        ''')
-    with gr.Row():
-            gr.Markdown('''
-            ### Reading Lip movement with youtube link using Avhubert
-            ##### Step 1a. Download video from youtube (Note: the length of video should be less than 10 seconds if not it will be cut and the face should be stable for better result)
-            ##### Step 1b. You also can upload video directly 
-            ##### Step 2. Generating landmarks surrounding mouth area
-            ##### Step 3. Reading lip movement.
-            ''')
-    with gr.Row():         
-        gr.Markdown('''
-            ### You can test by following examples:
-            ''')
-    examples = gr.Examples(examples=
-            [ "https://www.youtube.com/watch?v=ZXVDnuepW2s", 
-              "https://www.youtube.com/watch?v=X8_glJn1B8o", 
-              "https://www.youtube.com/watch?v=80yqL2KzBVw"],
-          label="Examples", inputs=[youtube_url_in])
-    with gr.Column():
-          youtube_url_in.render()
-          download_youtube_btn = gr.Button("Download Youtube video")
-          download_youtube_btn.click(get_youtube, [youtube_url_in], [
-              video_in])
-          print(video_in)
-    with gr.Row():  
-        video_in.render()
-        video_out.render()
-    with gr.Row():
-        detect_landmark_btn = gr.Button("Detect landmark")
-        detect_landmark_btn.click(preprocess_video, [video_in], [
-            video_out])
-        predict_btn = gr.Button("Predict")
-        predict_btn.click(predict, [video_out], [
-            text_output])
-    with gr.Row():
-        # video_lip = gr.Video(label="Audio Visual Video", mirror_webcam=False) 
-        text_output.render()
-        
-        
+        <div>
+        <h1 style='text-align: center'>Speech Recognition from Visual Lip Movement by Audio-Visual Hidden Unit BERT Model (AV-HuBERT)</h1>
+        This space uses AV-HuBERT models from <a href='https://github.com/facebookresearch' target='_blank'><b>Meta Research</b></a> to recoginze the speech from Lip Movement 🤗
+        <figure>
+            <img src="https://huggingface.co/vumichien/AV-HuBERT/resolve/main/lipreading.gif" alt="Audio-Visual Speech Recognition">
+            <figcaption> Speech Recognition from visual lip movement
+            </figcaption>
+        </figure>
+        </div>
+    ''')
+    
+    gr.Markdown('''
+        ### Reading Lip movement with youtube link using Avhubert
+        ##### Step 1a. Download video from youtube (Note: the length of video should be less than 10 seconds if not it will be cut and the face should be stable for better result)
+        ##### Step 1b. You also can upload video directly 
+        ##### Step 2. Generating landmarks surrounding mouth area
+        ##### Step 3. Reading lip movement.
+    ''')
+    
+    gr.Markdown('''
+        ### You can test by following examples:
+    ''')
+    
+    examples = gr.Examples(examples=[
+        "https://www.youtube.com/watch?v=ZXVDnuepW2s",
+        "https://www.youtube.com/watch?v=X8_glJn1B8o",
+        "https://www.youtube.com/watch?v=80yqL2KzBVw"],
+        label="Examples", inputs=[youtube_url_in])
+    
+    youtube_url_in.render()
+    
+    download_youtube_btn = gr.Button("Download Youtube video")
+    download_youtube_btn.click(get_youtube, [youtube_url_in], [video_in])
+    
+    detect_landmark_btn = gr.Button("Detect landmark")
+    detect_landmark_btn.click(preprocess_video, [video_in], [video_out])
+    
+    predict_btn = gr.Button("Predict")
+    predict_btn.click(predict, [video_out], [text_output])
+
+    video_in.render()
+    video_out.render()
+    text_output.render()
+
+    # Download button for word timings file
+    download_word_timings_btn = gr.Download(label="Download Word Timings")
+    download_word_timings_btn.click(lambda: "/home/user/app/av_hubert/avhubert/word_timings.txt")
+
 demo.launch(debug=True)
+
