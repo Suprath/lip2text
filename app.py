@@ -1,6 +1,5 @@
 import os
 import sys
-import xml.etree.ElementTree as ET
 
 os.system('git clone https://github.com/facebookresearch/av_hubert.git')
 os.chdir('/home/user/app/av_hubert')
@@ -17,7 +16,15 @@ os.system('pip install gradio==3.12')
 os.system('pip install numpy==1.23.3')
 
 
+# sys.path.append('/home/user/app/av_hubert')
 sys.path.append('/home/user/app/av_hubert/avhubert')
+
+print(sys.path)
+print(os.listdir())
+print(sys.argv, type(sys.argv))
+sys.argv.append('dummy')
+
+
 
 import dlib, cv2, os
 import numpy as np
@@ -36,6 +43,8 @@ from fairseq.dataclass.configs import GenerationConfig
 from huggingface_hub import hf_hub_download
 import gradio as gr
 from pytube import YouTube
+
+# os.chdir('/home/user/app/av_hubert/avhubert')
 
 user_dir = "/home/user/app/av_hubert/avhubert"
 utils.import_user_module(Namespace(user_dir=user_dir))
@@ -126,26 +135,13 @@ def predict(process_video):
     ref = decode_fn(sample['target'][0].int().cpu())
     hypo = hypos[0][0]['tokens'].int().cpu()
     hypo = decode_fn(hypo)
-
-    # Create XML file
-    root = ET.Element("transcript")
-    for i, word in enumerate(hypo.split()):
-        word_element = ET.SubElement(root, "word")
-        word_element.set("timecode", str(i))
-        word_element.text = word
-
-    xml_tree = ET.ElementTree(root)
-    xml_tree.write("transcript.xml")
-
-    return hypo, "transcript.xml"
+    return hypo
 
 
 # ---- Gradio Layout -----
 youtube_url_in = gr.Textbox(label="Youtube url", lines=1, interactive=True)
 video_in = gr.Video(label="Input Video", mirror_webcam=False, interactive=True)
 video_out = gr.Video(label="Audio Visual Video", mirror_webcam=False, interactive=True) 
-xml_output = gr.File(label="Download XML", download=True)
-
 demo = gr.Blocks()
 demo.encrypt = False
 text_output = gr.Textbox()
@@ -154,7 +150,7 @@ with demo:
     gr.Markdown('''
             <div>
             <h1 style='text-align: center'>Speech Recognition from Visual Lip Movement by Audio-Visual Hidden Unit BERT Model (AV-HuBERT)</h1>
-            This space uses AV-HuBERT models from <a href='https://github.com/facebookresearch' target='_blank'><b>Meta Research</b></a> to recognize the speech from Lip Movement
+            This space uses AV-HuBERT models from <a href='https://github.com/facebookresearch' target='_blank'><b>Meta Research</b></a> to recoginze the speech from Lip Movement
             <figure>
               <img src="https://huggingface.co/vumichien/AV-HuBERT/resolve/main/lipreading.gif" alt="Audio-Visual Speech Recognition">
               <figcaption> Speech Recognition from visual lip movement
@@ -194,7 +190,7 @@ with demo:
             video_out])
         predict_btn = gr.Button("Predict")
         predict_btn.click(predict, [video_out], [
-            text_output, xml_output])
+            text_output])
     with gr.Row():
         # video_lip = gr.Video(label="Audio Visual Video", mirror_webcam=False) 
         text_output.render()
