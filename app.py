@@ -1,19 +1,6 @@
 import os
 import sys
 import xml.etree.ElementTree as ET
-import gradio as gr
-import cv2
-import dlib
-import numpy as np
-import skvideo.io
-import torch
-from argparse import Namespace
-from base64 import b64encode
-from huggingface_hub import hf_hub_download
-from pytube import YouTube
-from tqdm import tqdm
-from fairseq import checkpoint_utils, tasks, utils
-from fairseq.dataclass.configs import GenerationConfig
 
 os.system('git clone https://github.com/facebookresearch/av_hubert.git')
 os.chdir('/home/user/app/av_hubert')
@@ -29,7 +16,26 @@ os.system('pip install transformers')
 os.system('pip install gradio==3.12')
 os.system('pip install numpy==1.23.3')
 
+
 sys.path.append('/home/user/app/av_hubert/avhubert')
+
+import dlib, cv2, os
+import numpy as np
+import skvideo
+import skvideo.io
+from tqdm import tqdm
+from preparation.align_mouth import landmarks_interpolate, crop_patch, write_video_ffmpeg
+from base64 import b64encode
+import torch
+import cv2
+import tempfile
+from argparse import Namespace
+import fairseq
+from fairseq import checkpoint_utils, options, tasks, utils
+from fairseq.dataclass.configs import GenerationConfig
+from huggingface_hub import hf_hub_download
+import gradio as gr
+from pytube import YouTube
 
 user_dir = "/home/user/app/av_hubert/avhubert"
 utils.import_user_module(Namespace(user_dir=user_dir))
@@ -133,6 +139,7 @@ def predict(process_video):
 
     return hypo, "transcript.xml"
 
+
 # ---- Gradio Layout -----
 youtube_url_in = gr.Textbox(label="Youtube url", lines=1, interactive=True)
 video_in = gr.Video(label="Input Video", mirror_webcam=False, interactive=True)
@@ -189,7 +196,9 @@ with demo:
         predict_btn.click(predict, [video_out], [
             text_output, xml_output])
     with gr.Row():
+        # video_lip = gr.Video(label="Audio Visual Video", mirror_webcam=False) 
         text_output.render()
-        xml_output.render()
 
+        
+        
 demo.launch(debug=True)
