@@ -1,6 +1,19 @@
 import os
 import sys
 import xml.etree.ElementTree as ET
+import gradio as gr
+import cv2
+import dlib
+import numpy as np
+import skvideo.io
+import torch
+from argparse import Namespace
+from base64 import b64encode
+from huggingface_hub import hf_hub_download
+from pytube import YouTube
+from tqdm import tqdm
+from fairseq import checkpoint_utils, tasks, utils
+from fairseq.dataclass.configs import GenerationConfig
 
 os.system('git clone https://github.com/facebookresearch/av_hubert.git')
 os.chdir('/home/user/app/av_hubert')
@@ -16,32 +29,7 @@ os.system('pip install transformers')
 os.system('pip install gradio==3.12')
 os.system('pip install numpy==1.23.3')
 
-
 sys.path.append('/home/user/app/av_hubert/avhubert')
-
-print(sys.path)
-print(os.listdir())
-print(sys.argv, type(sys.argv))
-sys.argv.append('dummy')
-
-
-import dlib, cv2, os
-import numpy as np
-import skvideo
-import skvideo.io
-from tqdm import tqdm
-from preparation.align_mouth import landmarks_interpolate, crop_patch, write_video_ffmpeg
-from base64 import b64encode
-import torch
-import cv2
-import tempfile
-from argparse import Namespace
-import fairseq
-from fairseq import checkpoint_utils, options, tasks, utils
-from fairseq.dataclass.configs import GenerationConfig
-from huggingface_hub import hf_hub_download
-import gradio as gr
-from pytube import YouTube
 
 user_dir = "/home/user/app/av_hubert/avhubert"
 utils.import_user_module(Namespace(user_dir=user_dir))
@@ -199,12 +187,7 @@ with demo:
             video_out])
         predict_btn = gr.Button("Predict")
         predict_btn.click(predict, [video_out], [
-            text_output])
-
-        # Download XML button
-        download_xml_btn = gr.Button("Download XML")
-        download_xml_btn.click(lambda: xml_output.download("transcript.xml"))
-
+            text_output, xml_output])
     with gr.Row():
         text_output.render()
         xml_output.render()
