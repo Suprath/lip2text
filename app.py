@@ -145,7 +145,6 @@ def predict(process_video):
 
     return hypo, "transcript.xml"
 
-
 # ---- Gradio Layout -----
 youtube_url_in = gr.Textbox(label="Youtube url", lines=1, interactive=True)
 video_in = gr.Video(label="Input Video", mirror_webcam=False, interactive=True)
@@ -200,11 +199,14 @@ with demo:
             video_out])
         predict_btn = gr.Button("Predict")
         predict_btn.click(predict, [video_out], [
-            text_output, xml_output])
-    with gr.Row():
-        # video_lip = gr.Video(label="Audio Visual Video", mirror_webcam=False) 
-        text_output.render()
+            text_output])
 
-        
-        
+        # Download XML button
+        download_xml_btn = gr.Button("Download XML")
+        download_xml_btn.click(lambda: xml_output.download("transcript.xml"))
+
+    with gr.Row():
+        text_output.render()
+        xml_output.render()
+
 demo.launch(debug=True)
