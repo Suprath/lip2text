@@ -1,5 +1,7 @@
 import os
 import sys
+import json
+
 
 os.system('git clone https://github.com/facebookresearch/av_hubert.git')
 os.chdir('/home/user/app/av_hubert')
@@ -116,7 +118,7 @@ def predict_and_save(process_video):
     
     # Collect timestamps and texts
     transcript = []
-    for i, (start, end) in enumerate(sample['net_input']['video_lengths'], 1):
+    for i, (start, end) in enumerate(sample['net_input']['audio_lengths'], 1):
         start_time = float(start) / 16_000
         end_time = float(end) / 16_000
         text = hypo[i].strip()
