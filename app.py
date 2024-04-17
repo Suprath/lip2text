@@ -230,7 +230,7 @@ with demo:
         detect_landmark_btn = gr.Button("Detect landmark")
         detect_landmark_btn.click(preprocess_video, [video_in], [
             video_out])
-        predict_btn = gr.Button("Predict" and save)
+        predict_btn = gr.Button("Predict and save")
         #predict_btn.click(predict, [video_out], [text_output])
         predict_btn.click(predict_and_save, [video_out], [text_output])
     with gr.Row():
