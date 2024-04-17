@@ -118,7 +118,7 @@ def predict_and_save(process_video):
     
     # Collect timestamps and texts
     transcript = []
-    for i, (start, end) in enumerate(sample['net_input']['audio_lengths'], 1):
+    for i, (start, end) in enumerate(sample['net_input']['video_lengths'], 1):
         start_time = float(start) / 16_000
         end_time = float(end) / 16_000
         text = hypo[i].strip()
@@ -129,6 +129,7 @@ def predict_and_save(process_video):
         json.dump(transcript, outfile, indent=4)
     
     return hypo
+
 
 def preprocess_video(input_video_path):
     if torch.cuda.is_available():
