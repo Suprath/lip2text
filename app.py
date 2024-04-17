@@ -88,6 +88,46 @@ def detect_landmark(image, detector, predictor):
             coords[i] = (shape.part(i).x, shape.part(i).y)
     return coords
 
+def predict_and_save(process_video):
+    num_frames = int(cv2.VideoCapture(process_video).get(cv2.CAP_PROP_FRAME_COUNT))
+
+    tsv_cont = ["/\n", f"test-0\t{process_video}\t{None}\t{num_frames}\t{int(16_000*num_frames/25)}\n"]
+    label_cont = ["DUMMY\n"]
+    with open(f"{data_dir}/test.tsv", "w") as fo:
+      fo.write("".join(tsv_cont))
+    with open(f"{data_dir}/test.wrd", "w") as fo:
+      fo.write("".join(label_cont))
+    task.load_dataset(gen_subset, task_cfg=saved_cfg.task)
+
+    def decode_fn(x):
+        dictionary = task.target_dictionary
+        symbols_ignore = generator.symbols_to_strip_from_output
+        symbols_ignore.add(dictionary.pad())
+        return task.datasets[gen_subset].label_processors[0].decode(x, symbols_ignore)
+
+    itr = task.get_batch_iterator(dataset=task.dataset(gen_subset)).next_epoch_itr(shuffle=False)
+    sample = next(itr)
+    if torch.cuda.is_available():
+        sample = utils.move_to_cuda(sample)
+    hypos = task.inference_step(generator, models, sample)
+    ref = decode_fn(sample['target'][0].int().cpu())
+    hypo = hypos[0][0]['tokens'].int().cpu()
+    hypo = decode_fn(hypo)
+    
+    # Collect timestamps and texts
+    transcript = []
+    for i, (start, end) in enumerate(sample['net_input']['video_lengths'], 1):
+        start_time = float(start) / 16_000
+        end_time = float(end) / 16_000
+        text = hypo[i].strip()
+        transcript.append({"timestamp": [start_time, end_time], "text": text})
+    
+    # Save transcript to a JSON file
+    with open('speech_transcript.json', 'w') as outfile:
+        json.dump(transcript, outfile, indent=4)
+    
+    return hypo
+
 def preprocess_video(input_video_path):
     if torch.cuda.is_available():
         detector = dlib.cnn_face_detection_model_v1(face_detector_path)
@@ -189,8 +229,8 @@ with demo:
         detect_landmark_btn.click(preprocess_video, [video_in], [
             video_out])
         predict_btn = gr.Button("Predict")
-        predict_btn.click(predict, [video_out], [
-            text_output])
+        #predict_btn.click(predict, [video_out], [text_output])
+        predict_btn.click(predict_and_save, [video_out], [text_output])
     with gr.Row():
         # video_lip = gr.Video(label="Audio Visual Video", mirror_webcam=False) 
         text_output.render()
