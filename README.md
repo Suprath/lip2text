@@ -1,6 +1,5 @@
 ---
 title: Speech Recognition from visual lip movement
-emoji: 🫧
 colorFrom: indigo
 colorTo: pink
 sdk: gradio
